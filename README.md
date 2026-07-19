@@ -16,7 +16,7 @@ pip install -r requirements.txt
 ## Quickstart
 
 ```bash
-python3 run_analysis.py path/to/your_pssm.asn output_folder/
+python run_analysis.py "path\to\your_pssm.asn" output_folder
 ```
 
 This writes `pssm_analysis.csv`, `pssm_analysis.json`, `conservation_profile.png`,
