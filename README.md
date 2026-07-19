@@ -8,8 +8,8 @@ matrix.
 ## Install
 
 ```bash
-git clone https://github.com/<your-username>/pssm-interpreter.git
-cd pssm-interpreter
+git clone https://github.com/ZeNnYz3n/pssm_tool.git
+cd pssm_tool
 pip install -r requirements.txt
 ```
 
