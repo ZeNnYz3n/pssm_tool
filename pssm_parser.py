@@ -89,9 +89,20 @@ def _parse_int_list(block_text):
 
 
 def parse_pssm_asn_text(path: str) -> ParsedPSSM:
+    """Read a file from disk and parse it. CLI/desktop entry point."""
     with open(path, "r", errors="replace") as f:
         text = f.read()
+    return parse_pssm_asn_content(text)
 
+
+def parse_pssm_asn_content(text: str) -> ParsedPSSM:
+    """
+    Parse PSSM ASN.1 text content directly (no file I/O). This is the core
+    function -- both parse_pssm_asn_text() above (CLI) and the browser tool
+    (which fetches this same file and imports it via Pyodide) call into
+    this one function, so there is exactly one implementation of the
+    parsing logic, not two.
+    """
     num_rows = int(re.search(r"numRows\s+(\d+)", text).group(1))
     num_columns = int(re.search(r"numColumns\s+(\d+)", text).group(1))
 

@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSSM Interpreter</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F6F1;
+    --card:#FFFFFF;
+    --ink:#1B2420;
+    --ink-soft:#4B5750;
+    --ink-faint:#8A9690;
+    --teal:#146356;
+    --teal-deep:#0D453C;
+    --border:rgba(20,36,32,0.14);
+    --amber-low:#FCEEDA;
+    --amber-mid:#F2A623;
+    --amber-high:#B8331B;
+    --danger:#B8331B;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      linear-gradient(var(--paper) 0 0),
+      repeating-linear-gradient(0deg, rgba(20,99,86,0.05) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(90deg, rgba(20,99,86,0.05) 0 1px, transparent 1px 28px);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:48px 24px 96px}
+  h1,h2,h3{font-family:"Spectral",serif;font-weight:600;margin:0 0 8px;color:var(--ink)}
+  h1{font-size:34px;letter-spacing:-0.01em}
+  h2{font-size:20px;margin-top:0}
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--teal);
+    margin-bottom:10px;
+  }
+  .tagline{color:var(--ink-soft);font-size:16px;max-width:60ch;margin:0 0 28px}
+  .mono{font-family:"JetBrains Mono",monospace}
+
+  .hero-strip{
+    display:flex;
+    height:20px;
+    border-radius:4px;
+    overflow:hidden;
+    margin-bottom:36px;
+    border:1px solid var(--border);
+  }
+  .hero-strip div{flex:1}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:28px;
+    margin-bottom:24px;
+  }
+
+  .dropzone{
+    border:1.5px dashed var(--teal);
+    border-radius:12px;
+    background:var(--card);
+    padding:40px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{background:var(--amber-low);border-color:var(--teal-deep)}
+  .dropzone p{margin:6px 0 0;color:var(--ink-soft);font-size:14px}
+  .dropzone .icon{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--teal);letter-spacing:0.06em}
+  input[type=file]{display:none}
+
+  #status{
+    font-family:"JetBrains Mono",monospace;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-top:14px;
+    min-height:18px;
+  }
+  #status.err{color:var(--danger)}
+
+  #results{display:none}
+
+  .meta-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+  .meta-row .len{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--ink-soft)}
+
+  .strip-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--card)}
+  .strip{display:flex;height:44px}
+  .strip div{
+    flex:0 0 auto;
+    width:6px;
+    height:100%;
+    border-right:1px solid rgba(255,255,255,0.5);
+    cursor:default;
+  }
+  .strip-legend{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--ink-soft)}
+  .legend-bar{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--amber-low),var(--amber-mid),var(--amber-high))}
+
+  canvas{width:100%;height:160px;display:block}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);font-weight:500}
+  td.mono, th.mono{font-family:"JetBrains Mono",monospace}
+  .tag{
+    display:inline-block;font-family:"JetBrains Mono",monospace;font-size:12px;
+    padding:2px 8px;border-radius:20px;background:var(--amber-low);color:var(--teal-deep);
+  }
+
+  .predict-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .predict-row label{font-size:13px;color:var(--ink-soft)}
+  .predict-row input, .predict-row select{
+    font-family:"JetBrains Mono",monospace;
+    padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--paper);
+    font-size:14px;
+  }
+  .predict-row input{width:90px}
+  button{
+    font-family:"JetBrains Mono",monospace;
+    background:var(--teal);color:#fff;border:none;border-radius:6px;
+    padding:9px 16px;font-size:13px;cursor:pointer;letter-spacing:0.02em;
+  }
+  button:hover{background:var(--teal-deep)}
+  button.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal)}
+  button.ghost:hover{background:var(--amber-low)}
+
+  #predictResult{
+    display:none;
+    margin-top:14px;padding:14px 16px;border-radius:8px;background:var(--paper);
+    border:1px solid var(--border);font-size:14px;
+  }
+  #predictResult .verdict{font-weight:500;color:var(--teal-deep)}
+
+  .full-table-wrap{max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
+  .full-table-wrap table{margin:0}
+  .full-table-wrap thead th{position:sticky;top:0;background:var(--card)}
+
+  .footer{margin-top:48px;font-size:13px;color:var(--ink-faint);border-top:1px solid var(--border);padding-top:20px}
+  .footer a{color:var(--teal)}
+  .privacy-note{
+    display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--ink-soft);
+    background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:18px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">psi-blast pssm interpreter</div>
+  <h1>Read a PSSM like a scientist</h1>
+  <p class="tagline">Upload an NCBI PSSM file (text/ASCII ASN.1 Scoremat, from psiblast) and get per-position conservation, favored/rejected residues, and a mutation predictor — computed entirely in your browser.</p>
+
+  <div id="heroStrip" class="hero-strip"></div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="icon">↑ .asn</div>
+    <div style="margin-top:6px;font-size:15px;font-weight:500">Click to choose a file, or drag one here</div>
+    <p>Text/ASCII ASN.1 PSSM output only — not the binary .asn/.smp form</p>
+    <input type="file" id="fileInput" accept=".asn,.txt">
+  </div>
+  <div id="status">Loading Python runtime…</div>
+
+  <div class="privacy-note">
+    <span class="mono" style="color:var(--teal)">i</span>
+    <span>Your file is parsed and analyzed locally in your browser using Pyodide (Python compiled to WebAssembly). Nothing is uploaded anywhere.</span>
+  </div>
+
+  <div id="results">
+    <div class="card">
+      <div class="meta-row">
+        <h2 id="metaTitle">—</h2>
+        <span class="len mono" id="metaLen">—</span>
+      </div>
+      <p id="narrative" style="color:var(--ink-soft)"></p>
+    </div>
+
+    <div class="card">
+      <h2>Conservation strip</h2>
+      <div class="strip-wrap"><div class="strip" id="strip"></div></div>
+      <div class="strip-legend">
+        <span>low</span><div class="legend-bar"></div><span>highly conserved</span>
+        <span style="margin-left:auto">hover a block for details</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Conservation profile</h2>
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Top 10 most conserved positions</h2>
+      <table>
+        <thead><tr><th>Pos</th><th>Wild</th><th class="mono">IC (bits)</th><th>Favored</th><th>Rejected</th></tr></thead>
+        <tbody id="topTable"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Mutation predictor</h2>
+      <div class="predict-row">
+        <label for="posInput">Position</label>
+        <input type="number" id="posInput" min="1" placeholder="e.g. 87">
+        <label for="resSelect">Becomes</label>
+        <select id="resSelect"></select>
+        <button id="predictBtn">Check</button>
+      </div>
+      <div id="predictResult"></div>
+    </div>
+
+    <div class="card">
+      <div class="meta-row">
+        <h2>Full per-position data</h2>
+        <button class="ghost" id="downloadCsvBtn">Download CSV</button>
+      </div>
+      <div class="full-table-wrap">
+        <table>
+          <thead><tr><th>Pos</th><th>Wild</th><th class="mono">Score</th><th class="mono">IC</th><th>Conservation</th><th>Best</th><th>Worst</th></tr></thead>
+          <tbody id="fullTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Built on the same parser and conservation math as the <a href="https://github.com/" target="_blank" rel="noopener">command-line PSSM Interpreter</a>. MIT licensed.
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js"></script>
+<script>
+const STANDARD_AA = ["A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V"];
+
+const GLUE_SOURCE = `
+import json
+import pssm_parser
+import pssm_analyzer
+
+_STATE = {}
+
+def parse_and_analyze(text, favored_threshold=3, rejected_threshold=-3):
+    parsed = pssm_parser.parse_pssm_asn_content(text)
+    results = pssm_analyzer.analyze_pssm(parsed)
+    narrative = pssm_analyzer.summary_narrative(parsed, results)
+    _STATE["parsed"] = parsed
+    return json.dumps({
+        "query_id": parsed.query_id, "query_title": parsed.query_title,
+        "num_columns": parsed.num_columns, "sequence": parsed.sequence,
+        "narrative": narrative, "results": results,
+    })
+
+def predict_mutation_json(position, residue):
+    if "parsed" not in _STATE:
+        raise ValueError("No PSSM loaded yet")
+    result = pssm_analyzer.predict_mutation(_STATE["parsed"], position, residue)
+    return json.dumps(result)
+`;
+
+let pyodideReady = null;
+let lastData = null;
+
+function icToColor(ic){
+  const t = Math.max(0, Math.min(1, ic / 2.5));
+  const lerp = (a,b,t) => Math.round(a + (b-a)*t);
+  const c1 = [252,238,218], c2 = [242,166,35], c3 = [184,51,27];
+  let a,b,tt;
+  if (t < 0.5){ a=c1; b=c2; tt=t/0.5; } else { a=c2; b=c3; tt=(t-0.5)/0.5; }
+  return `rgb(${lerp(a[0],b[0],tt)},${lerp(a[1],b[1],tt)},${lerp(a[2],b[2],tt)})`;
+}
+
+function buildHeroStrip(){
+  const hero = document.getElementById('heroStrip');
+  for (let i=0;i<60;i++){
+    const d = document.createElement('div');
+    const ic = Math.random() < 0.12 ? 2 + Math.random()*0.6 : Math.random()*1.1;
+    d.style.background = icToColor(ic);
+    hero.appendChild(d);
+  }
+}
+buildHeroStrip();
+
+const resSelect = document.getElementById('resSelect');
+STANDARD_AA.forEach(aa => {
+  const opt = document.createElement('option');
+  opt.value = aa; opt.textContent = aa;
+  resSelect.appendChild(opt);
+});
+
+const statusEl = document.getElementById('status');
+
+async function initPyodide(){
+  try{
+    statusEl.textContent = 'Loading Python runtime\u2026';
+    const pyodide = await loadPyodide();
+
+    statusEl.textContent = 'Fetching pssm_parser.py and pssm_analyzer.py\u2026';
+    const [parserSrc, analyzerSrc] = await Promise.all([
+      fetch('pssm_parser.py').then(r => {
+        if (!r.ok) throw new Error('pssm_parser.py not found next to index.html (HTTP ' + r.status + ')');
+        return r.text();
+      }),
+      fetch('pssm_analyzer.py').then(r => {
+        if (!r.ok) throw new Error('pssm_analyzer.py not found next to index.html (HTTP ' + r.status + ')');
+        return r.text();
+      }),
+    ]);
+
+    // Write the real repo files into Pyodide's virtual filesystem so
+    // `import pssm_parser` / `import pssm_analyzer` resolve to them --
+    // this is the actual repo code, not a copy.
+    pyodide.FS.writeFile('pssm_parser.py', parserSrc);
+    pyodide.FS.writeFile('pssm_analyzer.py', analyzerSrc);
+    pyodide.runPython(GLUE_SOURCE);
+
+    statusEl.textContent = 'Ready \u2014 choose a PSSM file to analyze';
+    return pyodide;
+  }catch(err){
+    statusEl.textContent = 'Failed to load: ' + err.message;
+    statusEl.classList.add('err');
+    throw err;
+  }
+}
+pyodideReady = initPyodide();
+
+const dropzone = document.getElementById('fileInput').closest ? document.getElementById('dropzone') : null;
+const dz = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dz.addEventListener('click', () => fileInput.click());
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file){
+  statusEl.classList.remove('err');
+  statusEl.textContent = 'Reading file\u2026';
+  const text = await file.text();
+  statusEl.textContent = 'Parsing and analyzing\u2026';
+  try{
+    const pyodide = await pyodideReady;
+    const fn = pyodide.globals.get('parse_and_analyze');
+    const jsonStr = fn(text);
+    const data = JSON.parse(jsonStr);
+    lastData = data;
+    renderResults(data);
+    statusEl.textContent = `Done \u2014 analyzed ${data.num_columns} positions`;
+  }catch(err){
+    statusEl.textContent = 'Error: ' + err.message.split('\\n').pop();
+    statusEl.classList.add('err');
+    document.getElementById('results').style.display = 'none';
+  }
+}
+
+function renderResults(data){
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('metaTitle').textContent = data.query_title || data.query_id;
+  document.getElementById('metaLen').textContent = data.num_columns + ' residues';
+  document.getElementById('narrative').textContent = data.narrative;
+
+  const strip = document.getElementById('strip');
+  strip.innerHTML = '';
+  data.results.forEach(r => {
+    const d = document.createElement('div');
+    d.style.background = icToColor(r.information_content_bits);
+    d.title = `${r.wild_residue}${r.position} \u2014 IC ${r.information_content_bits} bits (${r.conservation})`;
+    strip.appendChild(d);
+  });
+
+  drawChart(data.results);
+
+  const top = [...data.results].sort((a,b) => b.information_content_bits - a.information_content_bits).slice(0, 10);
+  const topBody = document.getElementById('topTable');
+  topBody.innerHTML = '';
+  top.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="mono">${r.position}</td><td>${r.wild_residue}</td><td class="mono">${r.information_content_bits}</td>
+      <td><span class="tag">${r.favored_residues || '\u2014'}</span></td>
+      <td style="color:var(--ink-soft);font-size:13px">${r.rejected_residues || '\u2014'}</td>`;
+    topBody.appendChild(tr);
+  });
+
+  const fullBody = document.getElementById('fullTable');
+  fullBody.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  data.results.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="mono">${r.position}</td><td>${r.wild_residue}</td><td class="mono">${r.wild_score}</td>
+      <td class="mono">${r.information_content_bits}</td><td>${r.conservation}</td>
+      <td class="mono">${r.best_residue} (${r.best_score})</td><td class="mono">${r.worst_residue} (${r.worst_score})</td>`;
+    frag.appendChild(tr);
+  });
+  fullBody.appendChild(frag);
+
+  document.getElementById('posInput').max = data.num_columns;
+}
+
+function drawChart(results){
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = 172;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const pad = {l:30,r:10,t:10,b:30};
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const maxIc = 2.6;
+  const n = results.length;
+  const xFor = i => pad.l + (i/(n-1))*plotW;
+  const yFor = ic => pad.t + plotH - (Math.min(ic,maxIc)/maxIc)*plotH;
+
+  ctx.strokeStyle = 'rgba(20,36,32,0.15)';
+  ctx.lineWidth = 1;
+  [0.5,1.0,2.0].forEach(v => {
+    const y = yFor(v);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
+  });
+  ctx.fillStyle = '#4B5750'; ctx.font = '10px "JetBrains Mono", monospace';
+  [0.5,1.0,2.0].forEach(v => ctx.fillText(v.toFixed(1), 2, yFor(v)+3));
+
+  ctx.beginPath();
+  results.forEach((r,i) => {
+    const x = xFor(i), y = yFor(r.information_content_bits);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = '#146356';
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+
+  ctx.lineTo(xFor(n-1), pad.t+plotH);
+  ctx.lineTo(xFor(0), pad.t+plotH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(20,99,86,0.10)';
+  ctx.fill();
+
+  // x-axis: baseline + position number ticks, spaced so labels don't overlap
+  const axisY = pad.t + plotH;
+  ctx.strokeStyle = 'rgba(20,36,32,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, axisY); ctx.lineTo(w-pad.r, axisY); ctx.stroke();
+
+  const niceSteps = [1,2,5,10,20,25,50,100,200,250,500,1000];
+  const targetTicks = Math.max(2, Math.floor(plotW / 55));
+  const rawStep = n / targetTicks;
+  const step = niceSteps.find(s => s >= rawStep) || niceSteps[niceSteps.length-1];
+
+  ctx.fillStyle = '#4B5750';
+  ctx.font = '10px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  for (let pos = 1; pos <= n; pos += step){
+    const x = xFor(pos-1);
+    ctx.strokeStyle = 'rgba(20,36,32,0.25)';
+    ctx.beginPath(); ctx.moveTo(x, axisY); ctx.lineTo(x, axisY+4); ctx.stroke();
+    ctx.fillText(String(pos), x, axisY+16);
+  }
+  if ((n-1) % step !== 0){
+    const x = xFor(n-1);
+    ctx.fillText(String(n), x, axisY+16);
+  }
+  ctx.textAlign = 'left';
+}
+
+document.getElementById('predictBtn').addEventListener('click', async () => {
+  const pos = parseInt(document.getElementById('posInput').value, 10);
+  const res = document.getElementById('resSelect').value;
+  const out = document.getElementById('predictResult');
+  if (!pos){ out.style.display='block'; out.innerHTML = 'Enter a position number first.'; return; }
+  try{
+    const pyodide = await pyodideReady;
+    const fn = pyodide.globals.get('predict_mutation_json');
+    const data = JSON.parse(fn(pos, res));
+    out.style.display = 'block';
+    out.innerHTML = `<strong>${data.wild_residue}${data.position}\u2192${data.mutant_residue}</strong>
+      &nbsp; score ${data.wild_score} \u2192 ${data.mutant_score} (\u0394${data.score_delta})
+      &nbsp;\u2014 position is ${data.position_conservation} (IC ${data.position_ic_bits} bits)<br>
+      <span class="verdict">${data.verdict}</span>`;
+  }catch(err){
+    out.style.display = 'block';
+    out.textContent = 'Error: ' + err.message.split('\n').pop();
+  }
+});
+
+document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+  if (!lastData) return;
+  const header = ['position','wild_residue','wild_score','information_content_bits','conservation','best_residue','best_score','worst_residue','worst_score','favored_residues','rejected_residues'];
+  const rows = lastData.results.map(r => [
+    r.position, r.wild_residue, r.wild_score, r.information_content_bits, r.conservation,
+    r.best_residue, r.best_score, r.worst_residue, r.worst_score,
+    `"${r.favored_residues}"`, `"${r.rejected_residues}"`
+  ].join(','));
+  const csv = [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pssm_analysis.csv';
+  a.click();
+});
+</script>
+</body>
+</html>
